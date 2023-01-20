@@ -3,7 +3,7 @@ A time tracking CLI application using the Rust programming language
 
 ## Rust crates used
  * **crossterm** for manipulating the command line (entering an alternative screen, leaving an alternative screen, clearing lines and moving the cursor)
- * **chrono** for getting the current (now) local date time
+ * **time** for getting the current (now) local date time and formatting the date time
  * **serde**, **serde-xml-rs** and **serde_derive** for reading a xml config file
  * **csv** for saving the tasks to a csv file
 

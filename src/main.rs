@@ -1,4 +1,3 @@
-use std::io::Write; // The write trait is needed by the crossterm crate
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
@@ -56,8 +55,8 @@ impl Default for Tasks {
 #[derive(Debug, Clone)]
 pub struct Task {
     pub id: usize,
-    pub start: chrono::DateTime<chrono::Local>,
-    pub end: chrono::DateTime<chrono::Local>,
+    pub start: time::OffsetDateTime,
+    pub end: time::OffsetDateTime,
     pub description: String,
 }
 
@@ -75,8 +74,8 @@ impl Task {
         }
         Task {
             id: id_to_assign,
-            start: chrono::Local::now(),
-            end: chrono::Local::now(),
+            start: time::OffsetDateTime::now_local().expect("local time"),
+            end: time::OffsetDateTime::now_local().expect("local time"),
             description: description_to_assign,
         }
     }
@@ -84,7 +83,7 @@ impl Task {
         id_to_assign: usize,
         description_to_assign: String,
         print_message: bool,
-        date_time: chrono::DateTime<chrono::Local>,
+        date_time: time::OffsetDateTime,
     ) -> Self {
         let mut task_with_modified_date_time =
             Task::new_task_with_desc(id_to_assign, description_to_assign.clone(), false);
@@ -104,12 +103,19 @@ impl Task {
 // more easily
 impl std::fmt::Display for Task {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let date_time_format =
+            time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]")
+                .expect("Harcoded format string was converted to a 'time' crate format descriptor");
         write!(
             f,
             "{} {} {} {}",
             self.id,
-            self.start.format("%Y-%m-%d %H:%M:%S").to_string(),
-            self.end.format("%Y-%m-%d %H:%M:%S").to_string(),
+            self.start
+                .format(&date_time_format)
+                .expect("Date time was able to be formatted to a string properly"),
+            self.end
+                .format(&date_time_format)
+                .expect("Date time was able to be formatted to a string properly"),
             self.description
         )
     }
@@ -158,7 +164,7 @@ fn close_if_there_is_one_open(tasks: &mut Tasks) {
         println!("The current open item is");
         println!("{}", current_task.clone().unwrap());
         if let Some(ref mut open_task) = &mut tasks.current_open_task {
-            open_task.end = chrono::Local::now();
+            open_task.end = time::OffsetDateTime::now_local().expect("local time");
             tasks.list.push(open_task.clone());
             tasks.open_task = false;
         }
@@ -193,7 +199,7 @@ fn new_task_with_desc_as_current(tasks: &mut Tasks, description: String) {
 fn new_task_with_desc_and_time_as_current(
     tasks: &mut Tasks,
     description: String,
-    date_time: chrono::DateTime<chrono::Local>,
+    date_time: time::OffsetDateTime,
 ) {
     let task_to_add = Task::new_task_with_desc_and_time(
         tasks.current_max_id,
@@ -253,11 +259,22 @@ fn save_to_csv(file_path: &std::path::Path, tasks: &Tasks) -> crossterm::Result<
     // like any other record.
     wtr.write_record(&["id", "start", "end", "description"])
         .expect("Error while trying to write headers");
+
+    let date_time_format =
+        time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]")
+            .expect("Harcoded format string was converted to a 'time' crate format descriptor");
+
     for each_task in &tasks.list {
         wtr.write_record(&[
             each_task.id.to_string(),
-            each_task.start.format("%Y-%m-%d %H:%M:%S").to_string(),
-            each_task.end.format("%Y-%m-%d %H:%M:%S").to_string(),
+            each_task
+                .start
+                .format(&date_time_format)
+                .expect("Date time was able to be formatted to a string properly"),
+            each_task
+                .end
+                .format(&date_time_format)
+                .expect("Date time was able to be formatted to a string properly"),
             each_task.description.clone(),
         ])
         .expect("Error while trying to write a record");
@@ -266,8 +283,12 @@ fn save_to_csv(file_path: &std::path::Path, tasks: &Tasks) -> crossterm::Result<
         if let Some(task) = &tasks.current_open_task {
             wtr.write_record(&[
                 task.id.to_string(),
-                task.start.format("%Y-%m-%d %H:%M:%S").to_string(),
-                task.end.format("%Y-%m-%d %H:%M:%S").to_string(),
+                task.start
+                    .format(&date_time_format)
+                    .expect("Date time was able to be formatted to a string properly"),
+                task.end
+                    .format(&date_time_format)
+                    .expect("Date time was able to be formatted to a string properly"),
                 task.description.clone(),
             ])
             .expect("Error while trying to write a record");
@@ -286,14 +307,17 @@ fn main() -> crossterm::Result<()> {
     let config_file = std::fs::File::open(xml_path)?;
     let configxml: ConfigXml = serde_xml_rs::from_reader(config_file).unwrap();
 
-    let current_start_time = chrono::Local::now();
+    let current_start_time = time::OffsetDateTime::now_local().expect("local time");
+
+    let date_time_format_string_from_config_file_xml =
+        configxml.date_time_format_to_append_in_output_file_name;
+    let date_time_format_from_config_file = time::format_description::parse(
+        &date_time_format_string_from_config_file_xml,
+    )
+    .expect("Format string in config file should have the format expected by the time crate (eg. '[year]-[month]-[day]_[hour]_[minute]_[second]'). This is to be converted to a 'time' crate format descriptor");
+
     let current_start_time = current_start_time
-        .format(
-            configxml
-                .date_time_format_to_append_in_output_file_name
-                .as_str(),
-        )
-        .to_string();
+        .format(&date_time_format_from_config_file).expect("The date time is expected to be able to be formatted with the format described in the config file. It should be in the way the 'time' crate understands it, for example '[year]-[month]-[day]_[hour]_[minute]_[second]'");
 
     let mut config_file_path_string = configxml.output_file_path_and_file_name;
     config_file_path_string.push_str(&current_start_time);
@@ -345,7 +369,7 @@ fn main() -> crossterm::Result<()> {
                 // We get the date_time at the start
                 // because it might take some time to write
                 // the description
-                let date_time = chrono::Local::now();
+                let date_time = time::OffsetDateTime::now_local().expect("local time");
                 // Close currently open task
                 close_if_there_is_one_open(&mut tasks);
                 println!("A new task will be created. Please write the description:");

@@ -302,7 +302,7 @@ fn main() -> crossterm::Result<()> {
     let mut w = std::io::stdout();
     let mut tasks = Tasks::new(); // Create 'tasks' struct
 
-    let xml_path_string = r".\config.xml";
+    let xml_path_string = r"./config.xml";
     let xml_path = std::path::Path::new(xml_path_string);
     let config_file = std::fs::File::open(xml_path)?;
     let configxml: ConfigXml = serde_xml_rs::from_reader(config_file).unwrap();

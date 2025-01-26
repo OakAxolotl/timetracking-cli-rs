@@ -122,7 +122,7 @@ impl std::fmt::Display for Task {
 }
 
 // Function used to clear the command line screen
-fn clear_command_line<T: std::io::Write>(w: &mut T) -> crossterm::Result<()> {
+fn clear_command_line<T: std::io::Write>(w: &mut T) -> std::io::Result<()> {
     // The queue! macro queues one or more command(s)
     // for further execution. They must be flushed to
     // be executed. In the case of stdout each line is
@@ -251,7 +251,7 @@ pub struct ConfigXml {
     pub date_time_format_to_append_in_output_file_name: String,
 }
 
-fn save_to_csv(file_path: &std::path::Path, tasks: &Tasks) -> crossterm::Result<()> {
+fn save_to_csv(file_path: &std::path::Path, tasks: &Tasks) -> std::io::Result<()> {
     // Generating the output to the csv file:
     let mut wtr = csv::Writer::from_path(file_path)
         .expect("Error creating the output file or the writing stream");
@@ -298,7 +298,7 @@ fn save_to_csv(file_path: &std::path::Path, tasks: &Tasks) -> crossterm::Result<
     Ok(())
 }
 
-fn main() -> crossterm::Result<()> {
+fn main() -> std::io::Result<()> {
     let mut w = std::io::stdout();
     let mut tasks = Tasks::new(); // Create 'tasks' struct
 
